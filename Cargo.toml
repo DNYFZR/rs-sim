@@ -1,0 +1,8 @@
+[package]
+name = "rs-sim"
+version = "0.4.2"
+edition = "2021"
+
+[dependencies]
+ndarray-rand="0.15"
+rayon="1.10"
