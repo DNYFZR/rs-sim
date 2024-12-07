@@ -1,4 +1,5 @@
-#[allow(dead_code, unused_imports, unused_variables)]
+// Discrete Event Model
+// #[allow(dead_code, unused_imports, unused_variables)]
 mod sim;
 
 use std::time::Instant;
@@ -24,23 +25,32 @@ fn main() {
 
     // Run settings
     let n_steps = 50;
-    let n_sims = 100;
+    let n_sims = 1000;
     
     // Execute - maxes out at 300 in parallel with 16GB RAM - CPU ok
     println!("Simulation initialised : {:#?} simulations of {:#?}k assets over {:#?} timesteps", n_sims, &states_len/1000, n_steps);
     
     let start = Instant::now();
-    sim::execute(n_sims, n_steps, states, probabilities);
+    sim::engine("./tmp", n_sims, n_steps, states, probabilities);
     let duration = start.elapsed();
     
     println!("Simulation complete in : {:?}", duration);
     println!();
 
     // Check result
-    let f = sim::read_parquet_file("./tmp/result_0.parquet")
+    let f = sim::read_parquet_file("./tmp/events.parquet")
         .expect("failed to read parquet dir...");
     println!("{:?}", f);
+    println!();
 
+    // let mut cost_map:Vec<i64> = vec![];
+    // for _ in 0..100_000 {
+    //     cost_map.push(rng.gen_range(10_000..50_000));
+    // }
+
+    // let event = sim::discrete_event(states, probabilities, n_steps);
+    // let constraint = sim::to_df(&sim::constrain(event, cost_map, 1_000_000));
+    // println!("{:?}", constraint); 
 }
 
 
