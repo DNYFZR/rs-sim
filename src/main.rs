@@ -1,8 +1,8 @@
-// #[allow(dead_code, unused_imports, unused_variables)]
+#[allow(dead_code, unused_imports, unused_variables)]
 mod sim;
 
 use std::time::Instant;
-use ndarray_rand::rand::{thread_rng, Rng};
+use ndarray_rand::rand::{rngs::SmallRng, Rng, SeedableRng};
 
 fn main() {
     // Survival curve
@@ -15,33 +15,32 @@ fn main() {
     ];
 
     // Initial states
-    let mut rng = thread_rng();
+    let mut rng = SmallRng::from_entropy();
     let mut states:Vec<i64> = vec![];
     for _ in 0..100_000 {
         states.push(rng.gen_range(0..50));
     }
+    let states_len = states.len();
 
-    // Run
+    // Run settings
     let n_steps = 50;
-    let n_sims = 10;
-    println!("Simulation initialised : {:#?} simulations of {:#?}k assets over {:#?} timesteps", n_sims, states.len()/1000, n_steps);
-
+    let n_sims = 100;
+    
+    // Execute - maxes out at 300 in parallel with 16GB RAM - CPU ok
+    println!("Simulation initialised : {:#?} simulations of {:#?}k assets over {:#?} timesteps", n_sims, &states_len/1000, n_steps);
+    
     let start = Instant::now();
-    let mut event = sim::run(states, probabilities, n_steps, n_sims);
+    sim::execute(n_sims, n_steps, states, probabilities);
     let duration = start.elapsed();
-
-    let start = Instant::now();
-    let agg = event.aggregate();
-    let duration_2 = start.elapsed();
-
-    // Result
+    
     println!("Simulation complete in : {:?}", duration);
-    println!("Aggregation complete in : {:?}", duration_2);
     println!();
 
-    println!("Sample :");
-    println!("{:?}", &event.state_matrix[0][0]);
-    println!("{:?}", &event.event_matrix[0][0]);
-    println!("{:?}", &agg[0]);
+    // Check result
+    let f = sim::read_parquet_file("./tmp/result_0.parquet")
+        .expect("failed to read parquet dir...");
+    println!("{:?}", f);
 
 }
+
+
