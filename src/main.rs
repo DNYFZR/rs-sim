@@ -1,8 +1,6 @@
 // Discrete Event Model
 // #[allow(dead_code, unused_imports, unused_variables)]
 mod sim;
-
-use std::time::Instant;
 use ndarray_rand::rand::{rngs::SmallRng, Rng, SeedableRng};
 
 fn main() {
@@ -16,41 +14,40 @@ fn main() {
     ];
 
     // Initial states
+    let n_states:i64 = 100_000;
     let mut rng = SmallRng::from_entropy();
     let mut states:Vec<i64> = vec![];
-    for _ in 0..100_000 {
+    for _ in 0..n_states {
         states.push(rng.gen_range(0..50));
     }
-    let states_len = states.len();
 
-    // Run settings
+    // Execute
     let n_steps = 50;
-    let n_sims = 1000;
-    
-    // Execute - maxes out at 300 in parallel with 16GB RAM - CPU ok
-    println!("Simulation initialised : {:#?} simulations of {:#?}k assets over {:#?} timesteps", n_sims, &states_len/1000, n_steps);
-    
-    let start = Instant::now();
-    sim::engine("./tmp", n_sims, n_steps, states, probabilities);
-    let duration = start.elapsed();
-    
-    println!("Simulation complete in : {:?}", duration);
-    println!();
+    let n_sims = 10;
+    let working_dir = "./tmp";
 
-    // Check result
-    let f = sim::read_parquet_file("./tmp/events.parquet")
+    if !std::path::Path::new(&working_dir).exists() {
+        std::fs::create_dir(&working_dir).expect("failed to create working dir...");
+    }
+
+    sim::engine(&working_dir, n_sims, n_steps, states.clone(), probabilities, 0, Some(vec![10_000; n_states as usize]));
+
+    // Check results
+    println!("Result Sample :");
+    let events = sim::read_parquet_file(&format!("{}/events.parquet", &working_dir))
         .expect("failed to read parquet dir...");
-    println!("{:?}", f);
+    println!("{:?}", events);
+    println!();
+    
+    let costs = sim::read_parquet_file(&format!("{}/costs.parquet", &working_dir))
+        .expect("failed to read parquet dir...");
+    println!("{:?}", costs);
     println!();
 
-    // let mut cost_map:Vec<i64> = vec![];
-    // for _ in 0..100_000 {
-    //     cost_map.push(rng.gen_range(10_000..50_000));
-    // }
-
-    // let event = sim::discrete_event(states, probabilities, n_steps);
-    // let constraint = sim::to_df(&sim::constrain(event, cost_map, 1_000_000));
-    // println!("{:?}", constraint); 
+    let profiles = sim::read_parquet_file(&format!("{}/profile.parquet", &working_dir))
+        .expect("failed to read parquet dir...");
+    println!("{:?}", profiles);
+    println!();
 }
 
 
