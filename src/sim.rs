@@ -130,22 +130,8 @@ fn aggregate(output_dir:&str, n_sims:i64, target_value:i64, target_mapping:Optio
     }
 
     // Consolidate arrays
-    let mut profile = DataFrame::empty();
-    for i in 0..profiles.len() {
-        let res = profiles.get(i).expect("failed to get table...").clone();
-        if i == 0 {
-            profile = res;
-        } else {
-            profile = concat([profile.lazy(), res.lazy()], UnionArgs::default())
-                .expect("failed to concat...")
-                .collect()
-                .expect("failed to collect...");
-        }
-    }
-    write_parquet(&profile, &format!("{}/profile.parquet", &output_dir))?;
-
     let mut agg_count = DataFrame::empty();
-    for i in 0..profiles.len() {
+    for i in 0..agg_counts.len() {
         let res = agg_counts.get(i).expect("failed to get table...").clone();
         if i == 0 {
             agg_count = res;
@@ -175,6 +161,20 @@ fn aggregate(output_dir:&str, n_sims:i64, target_value:i64, target_mapping:Optio
         }
         write_parquet(&agg_value, &format!("{}/costs.parquet", &output_dir))?;
     }
+
+    let mut profile = DataFrame::empty();
+    for i in 0..profiles.len() {
+        let res = profiles.get(i).expect("failed to get table...").clone();
+        if i == 0 {
+            profile = res;
+        } else {
+            profile = concat([profile.lazy(), res.lazy()], UnionArgs::default())
+                .expect("failed to concat...")
+                .collect()
+                .expect("failed to collect...");
+        }
+    }
+    write_parquet(&profile, &format!("{}/profile.parquet", &output_dir))?;
 
     Ok(())
 }

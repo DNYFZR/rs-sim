@@ -23,8 +23,8 @@ fn main() {
 
     // Execute
     let n_steps = 50;
-    let n_sims = 10;
-    let working_dir = "./tmp";
+    let n_sims = 1000;
+    let working_dir = "./tmp/test-1000";
 
     if !std::path::Path::new(&working_dir).exists() {
         std::fs::create_dir(&working_dir).expect("failed to create working dir...");

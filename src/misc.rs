@@ -54,3 +54,35 @@
 //     write_parquet(&mut profile, &format!("{}/profile.parquet", &output_dir))?;
     
 // }
+
+// def polar_constrain(df, annual_limit = 250e6, converter_col="converter", iter_regex = "step"):
+//     '''Constrain...'''
+
+//     df = df.with_columns(pl.col(converter_col).cast(pl.Int64).alias(converter_col))
+//     iter_cols = [i for i in df.columns if re.search(iter_regex, i)] 
+    
+//     # Create limit map - if not provided
+//     if not isinstance(annual_limit, dict):
+//         annual_limit = {i: annual_limit for i in iter_cols}
+
+//     # Apply constraint - skip initial state (step_0)
+//     for n, col in enumerate(iter_cols):
+//         if n > 0 :
+//             # Add random value col for ordering window
+//             df = df.with_columns(pl.lit(np.random.random_sample(size=df.shape[0])).alias("order_col"))
+
+//             # Calculate totals across window
+//             df = df.with_columns(pl.when(pl.col(col) == 0).then(pl.col(converter_col).cast(pl.Int64)).otherwise(0).alias("applied"))
+//             df = df.sort("order_col", descending=True).with_columns(pl.col("applied").cumsum().over("model_iteration").alias("total"))
+
+//             # Create / update temp col
+//             df = df.with_columns(pl.when((pl.col(col) == 0) & (pl.col("total") > annual_limit[col])).then(pl.col(iter_cols[n-1]) + pl.lit(1)).otherwise(pl.col(col)).alias("tmp_col"))
+            
+//             # Update from last col to next col
+//             for i, c in enumerate(iter_cols[:n:-1]):
+//                 df = df.with_columns(pl.when(pl.col("tmp_col") != pl.col(col)).then(pl.col(iter_cols[-(i+2)])).otherwise(pl.col(c)).alias(c))
+
+//             # Update current col
+//             df = df.with_columns(pl.col("tmp_col").alias(col))
+
+//     return df
