@@ -1,17 +1,26 @@
-<h1 align="center"> Rust Simulator </h1>
+<h1 align="center"> rs-sim </h1>
+<pre align="center">discrete event simulations using rust</pre>
 
-Low level event simulator...
+### Functionality
 
-## Crates
+- event engine for parallel execution of models, within local memory constraints
 
-- ndarray-rand : random number generation
-- rayon : parallel processing
+- core discrete event simulator
 
-## Notes
+- parquet file i/o
 
-Current functionality :
+- aggregation system
+  
+  - summarise total events per timestep in each simulation & combine into a single table
+  
+  - the same, but using a converted target value (e.g. replacement cost)
+  
+  - the age profile across each timestep for each iteration
 
-- generate an inventory of assets to simulate
-- run a specified number of simulations over a specified range of time intervals
-- generate state & event matrices for the results
-- aggregate the event matrix across each time step
+- more to follow...
+
+### Dependencies
+
+- **ndarray-rand** : random number generation
+- **rayon** : parallel processing engine
+- **polars** : dataframe ops & parquet file i/o
