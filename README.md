@@ -17,6 +17,8 @@
   
   - the age profile across each timestep for each iteration
 
+- apply a financial constraint to the resulting simulation and model across full timelines
+
 - more to follow...
 
 ### Dependencies
