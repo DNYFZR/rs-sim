@@ -1,9 +1,9 @@
 [package]
 name = "rs-sim"
-version = "0.7.3"
+version = "0.8.8"
 edition = "2021"
 
 [dependencies]
 ndarray-rand="0.15"
 rayon="1.10"
-polars = { version = "0.45", features = ["parquet", "lazy"] }
+polars = { version = "0.45", features = ["parquet", "lazy", "cum_agg"] }
