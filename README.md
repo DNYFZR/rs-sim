@@ -1,28 +1,36 @@
 <h1 align="center"> rs-sim </h1>
-<pre align="center">discrete event simulations using rust</pre>
+
+This rust codebase is for running discrete event simulations
 
 ### Functionality
 
-- event engine for parallel execution of models, within local memory constraints
+- parallelised execution engine, operating within local memory constraints
 
-- core discrete event simulator
+- core discrete event simulation engine
 
-- parquet file i/o
+- file i/o management (parquet)
 
-- aggregation system
+- result aggregation systems
   
-  - summarise total events per timestep in each simulation & combine into a single table
+  - summarise total events per timestep across all simulations
   
-  - the same, but using a converted target value (e.g. replacement cost)
+  - the same, but using a converted target value (e.g. replacement cost / asset value etc.)
   
-  - the age profile across each timestep for each iteration
+  - profile values across each timestep within each iteration
 
-- apply a financial constraint to the resulting simulation and model across full timelines
+- event constraint engine - apply a (financial) constraint to results, reallocating events to prevent breaching the timestep limit
 
-- more to follow...
 
 ### Dependencies
 
-- **ndarray-rand** : random number generation
-- **rayon** : parallel processing engine
-- **polars** : dataframe ops & parquet file i/o
+- **ndarray-rand** : random number management
+- **rayon** : parallel processing implementation
+- **polars** : dataframe operations & parquet file i/o management
+
+### To Do
+
+1. Implement testing
+
+2. Run time optimisation
+
+3. In year risk modelling - unconstrained demand vs. constrained 'reality'

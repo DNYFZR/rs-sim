@@ -6,7 +6,7 @@ mod sim;
 use ndarray_rand::rand::{rngs::SmallRng, Rng, SeedableRng};
 
 fn main() {
-    let working_dir = "./tmp/2024-dec-test-constrain-v3";
+    let working_dir = "./tmp/sim";
     
     // Survival curve
     let probabilities = vec![
@@ -29,7 +29,7 @@ fn main() {
     let n_steps:i64 = 50;
     let n_sims:i64 = 10;
     
-    let constraints = vec![150_000_000; n_steps as usize];
+    let constraints = vec![50_000_000; n_steps as usize];
     
     if !std::path::Path::new(&working_dir).exists() {
         std::fs::create_dir(&working_dir).expect("failed to create working dir...");
