@@ -6,7 +6,7 @@ mod sim;
 use ndarray_rand::rand::{rngs::SmallRng, Rng, SeedableRng};
 
 fn main() {
-    let working_dir = "./tmp/sim";
+    let working_dir = "./tmp/sim/test";
     
     // Survival curve
     let probabilities = vec![
@@ -27,7 +27,7 @@ fn main() {
     
     // Execute
     let n_steps:i64 = 50;
-    let n_sims:i64 = 10;
+    let n_sims:i64 = 1000;
     
     let constraints = vec![50_000_000; n_steps as usize];
     
@@ -35,17 +35,29 @@ fn main() {
         std::fs::create_dir(&working_dir).expect("failed to create working dir...");
     }
 
-    sim::engine(&working_dir, n_sims, n_steps, states.clone(), probabilities, 0, Some(costs), Some(constraints));
+    sim::engine(
+        &working_dir, 
+        n_sims, 
+        n_steps, 
+        states, 
+        probabilities, 
+        0, 
+        Some(&costs), 
+        Some(constraints)
+    );
 
     // Check 
     println!("Result Sample :");
+    
     let events = pq::read(&format!("{}/events.parquet", &working_dir))
         .expect("failed to read parquet dir...");
+    
     println!("{:?}", events);
     println!();
     
     let events_constrained = pq::read(&format!("{}/events_const.parquet", &working_dir))
         .expect("failed to read parquet dir...");
+
     println!("{:?}", events_constrained);
     println!();
 
