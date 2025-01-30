@@ -31,6 +31,4 @@ This rust codebase is for running discrete event simulations
 
 1. Implement testing
 
-2. Run time optimisation
-
-3. In year risk modelling - unconstrained demand vs. constrained 'reality'
+2. In year risk modelling - unconstrained demand vs. constrained 'reality'
