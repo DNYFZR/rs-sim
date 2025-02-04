@@ -1,4 +1,4 @@
-<h1 align="center"> rs-sim </h1>
+<h2 align="center"> rs-sim </h2>
 
 This rust codebase is for running discrete event simulations
 
@@ -8,7 +8,7 @@ This rust codebase is for running discrete event simulations
 
 - core discrete event simulation engine
 
-- file i/o management (parquet)
+- event constraint engine - apply a financial constraint to results, reallocating events to prevent breaching each timestep limit
 
 - result aggregation systems
   
@@ -18,17 +18,16 @@ This rust codebase is for running discrete event simulations
   
   - profile values across each timestep within each iteration
 
-- event constraint engine - apply a (financial) constraint to results, reallocating events to prevent breaching the timestep limit
-
-
-### Dependencies
-
-- **ndarray-rand** : random number management
-- **rayon** : parallel processing implementation
-- **polars** : dataframe operations & parquet file i/o management
+- file i/o management (parquet)
 
 ### To Do
 
-1. Implement testing
+- Implement testing
 
-2. In year risk modelling - unconstrained demand vs. constrained 'reality'
+- In year risk modelling - unconstrained demand vs. constrained 'reality'
+
+- Add UUID handling & review data flows
+
+- Add input file handling (states & probabilities etc.)
+
+- Add UI (TUI or GUI) - TBD
