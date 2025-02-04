@@ -52,8 +52,10 @@ pub fn engine(output_dir:&str, n_sims:i64, n_steps:i64, states: Vec<i64>, probab
 
     // Aggregations
     tx::aggregate(output_dir, n_sims, target_value, target_mapping, false).expect("failed to complete aggregation...");
-    tx::aggregate(output_dir, n_sims, target_value, target_mapping, true).expect("failed to complete constrained aggregation...");
-
+    if limit_array.is_some() && target_mapping.is_some() {
+        tx::aggregate(output_dir, n_sims, target_value, target_mapping, true).expect("failed to complete constrained aggregation...");
+    }
+    
     let duration_agg = start.elapsed();
     println!("Aggregation complete in : {:?}", duration_agg - duration);
     println!();
