@@ -24,27 +24,31 @@ fn test_read(){
 }
 
 pub fn write(mut df: DataFrame, path: &str) -> Result<(), PolarsError> {
-  let file = std::fs::File::create(path)?;
+    let file = std::fs::File::create(path)?;
 
-  // Create a ParquetWriter and write the DataFrame
-  ParquetWriter::new(file)
-      .with_statistics(StatisticsOptions::full())
-      .with_compression(ParquetCompression::Snappy)
-      .finish(&mut df)?;
+    // Create a ParquetWriter and write the DataFrame
+    ParquetWriter::new(file)
+        .with_statistics(StatisticsOptions::full())
+        .with_compression(ParquetCompression::Snappy)
+        .finish(&mut df)?;
 
-  Ok(())
+Ok(())
 }
 
 #[test]
 fn test_write(){
     // Create file
+    if !std::fs::exists("./tmp").unwrap() {
+        std::fs::create_dir("./tmp").unwrap();
+    }
     let test = "./tmp/test_write.parquet";
     let df = read("./data/init_states.parquet").expect("failed to read file");
     write(df, test).expect("failed to write...");
-    
+
     // Confirms existance & remove
     let res = std::fs::exists(test).unwrap();
     std::fs::remove_file(test).unwrap();
 
-    assert!(res);
+assert!(res);
+
 }

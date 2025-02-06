@@ -173,6 +173,9 @@ fn test_execute_event() {
     let n_steps:i64 = 5;
 
     // run base sim only, with event aggregation & value counting (age profiles)
+    if !std::fs::exists("./tmp").unwrap() {
+        std::fs::create_dir("./tmp").unwrap();
+    }
     execute_event("./tmp/", 0, &uuids, &states, &probabilities, &n_steps, None, None).unwrap();
     
     let res = pq::read("./tmp/result_0.parquet").unwrap();
