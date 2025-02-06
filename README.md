@@ -4,6 +4,8 @@ This rust codebase is for running discrete event simulations
 
 ### Functionality
 
+- read uuids, initial states & costs from parquet file 
+
 - parallelised execution engine, operating within local memory constraints
 
 - core discrete event simulation engine
@@ -18,15 +20,13 @@ This rust codebase is for running discrete event simulations
   
   - profile values across each timestep within each iteration
 
-- file i/o management (parquet)
+- save all data to parquet files
 
 ### To Do
 
 - Implement testing
 
 - In year risk modelling - unconstrained demand vs. constrained 'reality'
-
-- Add UUID handling & review data flows
 
 - Add input file handling (states & probabilities etc.)
 
