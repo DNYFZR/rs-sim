@@ -5,6 +5,10 @@ mod pq;
 mod sim;
 
 fn main() {
+    run();    
+}
+
+fn run() {
     let working_dir = "./tmp/sim/test-50yr";
     
     // Survival curve
@@ -59,3 +63,4 @@ fn main() {
     println!("{:?}", costs_constrained);
     println!();
 }
+
