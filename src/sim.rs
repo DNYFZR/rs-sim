@@ -1,12 +1,13 @@
 // Simulation Module
 use crate::pq;
 use crate::tx;
+
 use std::time::Instant;
 use rayon::prelude::*;
 use ndarray_rand::rand::{rngs::SmallRng, Rng, SeedableRng};
 use polars::prelude::*;
 
-pub fn engine(output_dir:&str, n_sims:i64, n_steps:i64, states: Vec<i64>, probabilities:Vec<f64>, target_value:i64, target_mapping: Option<&Vec<i64>>, limit_array:Option<Vec<i64>>) {
+pub fn engine(output_dir:&str, n_sims:i64, n_steps:i64, uuids:Vec<String>, states: Vec<i64>, probabilities:Vec<f64>, target_value:i64, costs:Option<&Vec<i64>>, limit_array:Option<Vec<i64>>) {
     println!("Simulation initialised : {:#?} simulations of {:#?}k assets over {:#?} timesteps", n_sims, &states.len()/1000, n_steps);
     let start = Instant::now();
 
@@ -32,10 +33,11 @@ pub fn engine(output_dir:&str, n_sims:i64, n_steps:i64, states: Vec<i64>, probab
             execute_event(
                 output_dir, 
                 run_id, 
+                &uuids,
                 &states, 
                 &probabilities, 
                 &n_steps, 
-                target_mapping, 
+                costs, 
                 limit_array.clone()
             ).expect(&format!("Execution failed for run ID : {run_id}"));
 
@@ -51,9 +53,14 @@ pub fn engine(output_dir:&str, n_sims:i64, n_steps:i64, states: Vec<i64>, probab
     println!();
 
     // Aggregations
-    tx::aggregate(output_dir, n_sims, target_value, target_mapping, false).expect("failed to complete aggregation...");
-    if limit_array.is_some() && target_mapping.is_some() {
-        tx::aggregate(output_dir, n_sims, target_value, target_mapping, true).expect("failed to complete constrained aggregation...");
+    if costs.is_some() {
+        tx::aggregate(output_dir, n_sims, target_value, true, false).expect("failed to complete aggregation...");
+
+        if limit_array.is_some() {
+            tx::aggregate(output_dir, n_sims, target_value, true, true).expect("failed to complete constrained aggregation...");
+        }
+    } else {
+        tx::aggregate(output_dir, n_sims, target_value, false, false).expect("failed to complete aggregation...");
     }
     
     let duration_agg = start.elapsed();
@@ -61,11 +68,23 @@ pub fn engine(output_dir:&str, n_sims:i64, n_steps:i64, states: Vec<i64>, probab
     println!();
  }
 
-fn execute_event(output_dir:&str, run_id:i64, states:&Vec<i64>, probabilities:&Vec<f64>, n_steps:&i64, target_mapping: Option<&Vec<i64>>, limit_array:Option<Vec<i64>>) -> Result<(), PolarsError> {
-    let mut tmp_df = &mut tx::to_df(&discrete_event(states, probabilities, n_steps));
+fn execute_event(output_dir:&str, run_id:i64, uuids:&Vec<String>, states:&Vec<i64>, probabilities:&Vec<f64>, n_steps:&i64, costs: Option<&Vec<i64>>, limit_array:Option<Vec<i64>>) -> Result<(), PolarsError> {
+    let costs_is_some = costs.is_some();
+    
+    let mut tmp_df = vec![Column::new(PlSmallStr::from_str("uuid"), uuids)];
+    tmp_df.extend(discrete_event(states, probabilities, n_steps)
+        .iter()
+        .enumerate()
+        .map(|(n, c)| Column::new(PlSmallStr::from_str(&format!("step_{n}")), c))
+        .collect::<Vec<Column>>()
+    );
+    
+    let mut tmp_df = &mut DataFrame::new(tmp_df)
+        .expect("failed to create table...");
+    // let mut tmp_df = &mut tx::to_df(&discrete_event(states, probabilities, n_steps));
             
-    if target_mapping.is_some() {
-        tmp_df = tmp_df.with_column(Series::from_vec(PlSmallStr::from_str("cost"), target_mapping.unwrap().clone()) )?;
+    if costs_is_some {
+        tmp_df = tmp_df.with_column(Series::from_vec(PlSmallStr::from_str("cost"), costs.unwrap().clone()) )?;
     }
     
     // Add id column
@@ -76,8 +95,8 @@ fn execute_event(output_dir:&str, run_id:i64, states:&Vec<i64>, probabilities:&V
 
 
     // Run sim constraint - reduce file i/o
-    if limit_array.is_some() && target_mapping.is_some() {
-        let tmp_df_const = tx::constrain_event(tmp_df.clone(), limit_array.unwrap())?;
+    if limit_array.is_some() && costs_is_some {
+        let tmp_df_const = tx::constrain_event(tmp_df, limit_array.unwrap())?;
 
         // Write to storage
         pq::write(tmp_df_const, &format!("{}/result_{}_constrained.parquet", &output_dir, &run_id))?;

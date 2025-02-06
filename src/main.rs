@@ -3,10 +3,9 @@
 mod tx;
 mod pq;
 mod sim;
-use ndarray_rand::rand::{rngs::SmallRng, Rng, SeedableRng};
 
 fn main() {
-    let working_dir = "./tmp/sim/test-100k-50yr-200m";
+    let working_dir = "./tmp/sim/test-50yr";
     
     // Survival curve
     let probabilities = vec![
@@ -17,17 +16,16 @@ fn main() {
         0.4, 0.25, 0.15, 0.1, 0.0
     ];
 
-    // Initial states
-    let n_states:i64 = 100_000;
-    let mut rng = SmallRng::from_entropy();
-    
-    let states:Vec<i64> = (0..n_states).map(|_| rng.gen_range(0..80)).collect::<Vec<i64>>();
-    // let uuids = (0..n_states).map(|_| rng.gen::<i64>()).collect::<Vec<i64>>();
-    let costs = (0..n_states).map(|_| rng.gen_range(20_000..40_000)).collect::<Vec<i64>>();
-    
+    let init_states = pq::read("data/init_states.parquet")
+        .expect("failted to read init states...");
+
+    let uuids = tx::col_to_vec_str(&init_states, "uuid");
+    let states = tx::col_to_vec_i64(&init_states, "step_0");
+    let costs = tx::col_to_vec_i64(&init_states, "value");
+
     // Execute
     let n_steps:i64 = 50;
-    let n_sims:i64 = 1000;
+    let n_sims:i64 = 200;
     let constraints = vec![200_000_000; n_steps as usize];
     
     if !std::path::Path::new(&working_dir).exists() {
@@ -38,6 +36,7 @@ fn main() {
         &working_dir, 
         n_sims, 
         n_steps, 
+        uuids,
         states, 
         probabilities, 
         0, 
@@ -59,7 +58,4 @@ fn main() {
 
     println!("{:?}", costs_constrained);
     println!();
-
 }
-
-
