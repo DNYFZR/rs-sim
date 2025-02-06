@@ -20,26 +20,3 @@ pub fn write(mut df: DataFrame, path: &str) -> Result<(), PolarsError> {
 
   Ok(())
 }
-
-// pub fn append(mut df: &mut DataFrame, path: &str) -> Result<(), PolarsError> {
-//     // handle append
-//     if std::fs::exists(path)? {
-//         let src = read(&path)?;
-//         let table = src.vstack(&df.select(src.get_column_names_str())?)?;
-//         *df = table;
-//     } 
-
-//     let file = std::fs::OpenOptions::new()
-//         .write(true)
-//         .create(true)
-//         .truncate(true)
-//         .open(path)?;
-    
-//     // Create a ParquetWriter and write the DataFrame
-//     ParquetWriter::new(file)
-//         .with_statistics(StatisticsOptions::full())
-//         .with_compression(ParquetCompression::Snappy)
-//         .finish(&mut df)?;
-
-//     Ok(())
-// }
