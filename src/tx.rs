@@ -4,7 +4,7 @@ use rayon::prelude::*;
 use polars::prelude::*;
 use ndarray_rand::rand::{rngs::SmallRng, Rng, SeedableRng};
 
-pub fn aggregate(output_dir:&str, n_sims:i64, target_value:i64, target_mapping:Option<&Vec<i64>>, constrained_scenarios:bool) -> Result<(), PolarsError> {       
+pub fn aggregate(output_dir:&str, n_sims:i64, target_value:i64, apply_cost:bool, constrained_scenarios:bool) -> Result<(), PolarsError> {       
     // Create result summaries
     let mut profiles = vec![];
     let mut agg_counts = vec![];
@@ -16,20 +16,23 @@ pub fn aggregate(output_dir:&str, n_sims:i64, target_value:i64, target_mapping:O
 
         profiles.push(count_values(&table).lazy());
         
-        if target_mapping.is_some() {
-            let agg_cost = aggregate_event(convert(&table, &target_value, target_mapping.unwrap()));
+        if apply_cost {
+            let agg_cost = aggregate_event(convert(&table, &target_value, apply_cost));
             agg_values.push(agg_cost.lazy());
         }
 
-        let agg_count = aggregate_event(convert(&table, &target_value, &vec![1 as i64; table.shape().0]) ).lazy(); 
+        let agg_count = aggregate_event(convert(&table, &target_value, apply_cost)).lazy(); 
         agg_counts.push(agg_count);
     }
 
     // Consolidate arrays
-    let agg_count = concat(agg_counts, UnionArgs::default())?.collect()?;
-    let path = if constrained_scenarios {&format!("{}/events_const.parquet", &output_dir)} else {&format!("{}/events.parquet", &output_dir)};
-    pq::write(agg_count, &path)?;
+    if apply_cost {
+        let agg_count = concat(agg_counts, UnionArgs::default())?.collect()?;
+        let path = if constrained_scenarios {&format!("{}/events_const.parquet", &output_dir)} else {&format!("{}/events.parquet", &output_dir)};
+        pq::write(agg_count, &path)?;
 
+    }
+    
     let agg_value = concat(agg_values, UnionArgs::default())?.collect()?;  
     let path = if constrained_scenarios {&format!("{}/costs_const.parquet", &output_dir)} else {&format!("{}/costs.parquet", &output_dir)};
     pq::write(agg_value, &path)?;
@@ -58,40 +61,35 @@ fn aggregate_event(table:DataFrame) -> DataFrame {
         .expect("failed to aggregate...");
 }
 
-pub fn convert(table:&DataFrame, target_value:&i64, target_mapping: &Vec<i64>) -> DataFrame {
+fn convert(table:&DataFrame, target_value:&i64, apply_cost:bool) -> DataFrame {
     // Get non-id cols
     let agg_cols:Vec<String> = table.get_column_names()
         .into_par_iter()
-        .filter(|&s| s != &PlSmallStr::from_str("sim_id"))
+        .filter(|&s| s.contains("step_"))
         .map(|v| v.to_string())
         .collect();
 
-    // Create target map column
-    let target_map_col = Series::from_vec(
-        PlSmallStr::from_str("cost"), 
-        target_mapping.clone()
-    );
-  
     // Run conversion
     return table.clone().lazy()
-        .with_column(lit(target_map_col))
         .with_columns(agg_cols.iter().map(|col_name|{
-            let e = when(col(col_name).eq(*target_value))
+            return when(col(col_name).eq(*target_value).and(apply_cost == true))
             .then(col("cost").alias(col_name))
-            .otherwise(lit(0 as i64).alias(col_name));
-
-            return e;
+            .otherwise(
+                when(col(col_name).eq(*target_value).and(apply_cost == false))
+                .then(lit(1).alias(col_name))
+                .otherwise(lit(0 as i64).alias(col_name)
+            ));
             }).collect::<Vec<Expr>>()
         )
         .collect()
         .expect("failed to convert...");
 }
 
-pub fn count_values(table:&DataFrame) -> DataFrame {
+fn count_values(table:&DataFrame) -> DataFrame {
     let sim_id:i64 = table.column("sim_id").unwrap().get(0).unwrap().try_extract().unwrap();
     let container = table.get_column_names_str()
         .into_par_iter()
-        .filter(|c| *c != "sim_id" && *c != "cost")
+        .filter(|c| *c != "sim_id" && *c != "cost" && *c != "uuid")
         .map(|c|{
             // count values - issue if polars > 0.45
             // name duplicate error on rename call
@@ -136,7 +134,8 @@ pub fn count_values(table:&DataFrame) -> DataFrame {
       .collect().expect("failed to sort...");
 }
 
-pub fn constrain_event(mut table:DataFrame, limit_array:Vec<i64>) -> Result<DataFrame, PolarsError> {
+pub fn constrain_event(table:&DataFrame, limit_array:Vec<i64>) -> Result<DataFrame, PolarsError> {
+    let mut table = table.clone();
     let val_col = "cost";
     let step_col = "step";
     let mut thrd = SmallRng::from_entropy();
@@ -144,56 +143,55 @@ pub fn constrain_event(mut table:DataFrame, limit_array:Vec<i64>) -> Result<Data
     let n_rows = table.shape().0;
     let active_cols:Vec<(usize, String)> = table.get_column_names()
         .iter()
+        .filter(|c| c.contains(step_col) )
         .enumerate()
-        .filter(|(_, c)| c.contains(step_col))
         .map(|(i,c)| (i, c.to_string()))
         .collect();
-
+    
     for (idx, col_name) in &active_cols {
         // We skip step 0 as the initial state cannot be altered
-        if *idx > 0 {
-            // Add random ordering & applied costs columns
-            table = table.lazy().with_columns([
-                lit(Series::from_vec(PlSmallStr::from_str("order_col"), (0..n_rows).map(|_| thrd.gen::<f64>()).collect::<Vec<f64>>())).alias("order_col"),
-                when(col(col_name).eq(lit(0))).then(col(val_col)).otherwise(lit(0)).alias("applied_cost"),
-            ]).collect()?;
-
-            // Sort & totalise
-            table = table
-                .sort(["order_col"], SortMultipleOptions::new().with_order_descending(true))?
-                .lazy()
-                .with_columns([col("applied_cost").cum_sum(false).alias("totaliser")])
-                .collect()?;
-
-            // Increase age if cost is above set limit 
-            table = table.lazy().with_columns([
-                when(col(col_name).eq(lit(0)).and(col("totaliser").gt(lit(limit_array[*idx])).eq(lit(true))) )
-                .then(col(&active_cols[idx-1].1) + lit(1))
-                .otherwise(col(col_name))
-                .alias("tmp_col"),
-            ]).collect()?;
-
-            // Update following years when event is deferred
-            for (i, c) in active_cols.iter().rev() {
-                if i > &idx {
-                    table = table.lazy().with_column(
-                        when(col(col_name).eq(lit(0)).and(col("totaliser").gt(lit(limit_array[*idx])).eq(lit(true))) )
-                        .then(col(&active_cols[i - 1].1))
-                        .otherwise(col(c))
-                        .alias(c)
-                    ).collect()?;
-                }
-            }
-            
-            // Merge holding col into current col
-            table = table.lazy().with_column(col("tmp_col").alias(col_name)).collect()?;
-
-        } else {
+        if col_name == "step_0" {
             continue;
         }
-    }
-    table = table.drop_many(["order_col", "applied_cost", "totaliser", "tmp_col", "set_limit"]);
+        // Add random ordering & applied costs columns
+        table = table.lazy().with_columns([
+            lit(Series::from_vec(PlSmallStr::from_str("order_col"), (0..n_rows).map(|_| thrd.gen::<f64>()).collect::<Vec<f64>>())).alias("order_col"),
+            when(col(col_name).eq(lit(0))).then(col(val_col)).otherwise(lit(0)).alias("applied_cost"),
+        ]).collect()?;
 
+        // Sort & totalise
+        table = table
+            .sort(["order_col"], SortMultipleOptions::new().with_order_descending(true))?
+            .lazy()
+            .with_columns([col("applied_cost").cum_sum(false).alias("totaliser")])
+            .collect()?;
+
+        // Increase age if cost is above set limit 
+        table = table.lazy().with_columns([
+            when(col(col_name).eq(lit(0)).and(col("totaliser").gt(lit(limit_array[*idx])).eq(lit(true))) )
+            .then(col(&active_cols[idx-1].1) + lit(1))
+            .otherwise(col(col_name))
+            .alias("tmp_col"),
+        ]).collect()?;
+
+        // Update following years when event is deferred
+        for (i, c) in active_cols.iter().rev() {
+            if i > &idx && *i != 0 {
+                table = table.lazy().with_column(
+                    when(col(col_name).eq(lit(0)).and(col("totaliser").gt(lit(limit_array[*idx])).eq(lit(true))) )
+                    .then(col(&active_cols[i - 1].1))
+                    .otherwise(col(c))
+                    .alias(c)
+                ).collect()?;
+            }
+        }
+        
+        // Merge holding col into current col
+        table = table.lazy().with_column(col("tmp_col").alias(col_name)).collect()?;
+
+        // Remove process cols
+        table = table.drop_many(["order_col", "applied_cost", "totaliser", "tmp_col"]);
+    }
     return Ok(table);
 }
 
@@ -205,11 +203,21 @@ pub fn transpose(v:&Vec<Vec<i64>>) -> Vec<Vec<i64>> {
         .collect()
 }
 
-pub fn to_df(table:&Vec<Vec<i64>>) -> DataFrame {
-    // Convert each inner vector into a Series
-    let series: Vec<Column> = table.into_par_iter().enumerate().map(|(i, vec)| {
-        Column::new(PlSmallStr::from_str(&format!("step_{}", i)), vec)
-    }).collect();
-
-    return DataFrame::new(series).expect("failed ot create df...")
+pub fn col_to_vec_i64(df:&DataFrame, col:&str) -> Vec<i64>{
+    return df
+        .column(col)
+        .expect("failedto get col...")
+        .i64()
+        .expect("failed to get i64 array")
+        .into_iter().map(|v| v.unwrap()).collect();
 }
+
+pub fn col_to_vec_str(df:&DataFrame, col:&str) -> Vec<String>{
+    return df
+        .column(col)
+        .expect("failedto get col...")
+        .str()
+        .expect("failed to get i64 array")
+        .into_iter().map(|v| String::from(v.unwrap())).collect();
+}
+
