@@ -81,7 +81,6 @@ fn execute_event(output_dir:&str, run_id:i64, uuids:&Vec<String>, states:&Vec<i6
     
     let mut tmp_df = &mut DataFrame::new(tmp_df)
         .expect("failed to create table...");
-    // let mut tmp_df = &mut tx::to_df(&discrete_event(states, probabilities, n_steps));
             
     if costs_is_some {
         tmp_df = tmp_df.with_column(Series::from_vec(PlSmallStr::from_str("cost"), costs.unwrap().clone()) )?;
@@ -132,3 +131,51 @@ fn discrete_event(states:&Vec<i64>, probabilities:&Vec<f64>, n_steps:&i64) -> Ve
     }).collect::<Vec<Vec<i64>>>());
 }
 
+
+#[test]
+fn test_discrete_event() {
+    let probabilities = vec![
+        1.0, 0.99, 0.97, 0.96, 0.95, 
+        0.94, 0.93, 0.92, 0.91, 0.9, 
+        0.88, 0.85, 0.82, 0.8, 0.75, 
+        0.7, 0.65, 0.6, 0.55, 0.5, 
+        0.4, 0.25, 0.15, 0.1, 0.0
+    ];
+
+    let init_states = pq::read("data/init_states.parquet")
+        .expect("failted to read init states...");
+
+    // let uuids = tx::col_to_vec_str(&init_states, "uuid");
+    let states = tx::col_to_vec_i64(&init_states, "step_0");
+    // let costs = tx::col_to_vec_i64(&init_states, "value");
+    let n_steps:i64 = 5;
+
+    let res = discrete_event(&states, &probabilities, &n_steps);
+    assert!(res[0].len() == 100_000);
+}
+
+#[test]
+fn test_execute_event() {
+    let probabilities = vec![
+        1.0, 0.99, 0.97, 0.96, 0.95, 
+        0.94, 0.93, 0.92, 0.91, 0.9, 
+        0.88, 0.85, 0.82, 0.8, 0.75, 
+        0.7, 0.65, 0.6, 0.55, 0.5, 
+        0.4, 0.25, 0.15, 0.1, 0.0
+    ];
+
+    let init_states = pq::read("data/init_states.parquet")
+        .expect("failted to read init states...");
+
+    let uuids = tx::col_to_vec_str(&init_states, "uuid");
+    let states = tx::col_to_vec_i64(&init_states, "step_0");
+    // let costs = tx::col_to_vec_i64(&init_states, "value");
+    let n_steps:i64 = 5;
+
+    // run base sim only, with event aggregation & value counting (age profiles)
+    execute_event("./tmp/", 0, &uuids, &states, &probabilities, &n_steps, None, None).unwrap();
+    
+    let res = pq::read("./tmp/result_0.parquet").unwrap();
+    std::fs::remove_file("./tmp/result_0.parquet").unwrap();
+    assert!(res.shape().0 == 100_000);
+}

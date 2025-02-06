@@ -9,6 +9,20 @@ pub fn read(path:&str) -> PolarsResult<DataFrame> {
   )
 }
 
+#[test]
+fn test_read(){
+    // Ensure expected columns are in table 
+    let test = vec!["uuid", "value", "step_0"];
+    let res:Vec<String> = read("./data/init_states.parquet")
+        .expect("failed to read file")
+        .get_column_names()
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+
+    assert_eq!(test, res);
+}
+
 pub fn write(mut df: DataFrame, path: &str) -> Result<(), PolarsError> {
   let file = std::fs::File::create(path)?;
 
@@ -19,4 +33,18 @@ pub fn write(mut df: DataFrame, path: &str) -> Result<(), PolarsError> {
       .finish(&mut df)?;
 
   Ok(())
+}
+
+#[test]
+fn test_write(){
+    // Create file
+    let test = "./tmp/test_write.parquet";
+    let df = read("./data/init_states.parquet").expect("failed to read file");
+    write(df, test).expect("failed to write...");
+    
+    // Confirms existance & remove
+    let res = std::fs::exists(test).unwrap();
+    std::fs::remove_file(test).unwrap();
+
+    assert!(res);
 }

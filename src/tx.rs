@@ -91,8 +91,6 @@ fn count_values(table:&DataFrame) -> DataFrame {
         .into_par_iter()
         .filter(|c| *c != "sim_id" && *c != "cost" && *c != "uuid")
         .map(|c|{
-            // count values - issue if polars > 0.45
-            // name duplicate error on rename call
             let val_counts = table.select(vec![c]).unwrap()
                 .rename(c, PlSmallStr::from_str("value")).unwrap()
                 .column("value").unwrap()
@@ -100,13 +98,6 @@ fn count_values(table:&DataFrame) -> DataFrame {
                 .value_counts(false, false, PlSmallStr::from_str(c), false)
                 .expect("failed to count values");
               
-            // val_counts.rename(c, PlSmallStr::from_str("value").into())
-            //     .expect("failed to rename column...");
-            
-            // val_counts.rename("count", PlSmallStr::from_str(c).into())
-            //     .expect("failed to rename columns...");
-          
-            // add sim_id
             return val_counts.clone().lazy()
                 .with_column(lit(sim_id).alias("sim_id"))
                 .select([col("sim_id"), col("value"), col(c)])
@@ -221,3 +212,27 @@ pub fn col_to_vec_str(df:&DataFrame, col:&str) -> Vec<String>{
         .into_iter().map(|v| String::from(v.unwrap())).collect();
 }
 
+
+#[test]
+fn test_transpose() {
+    let test:Vec<Vec<i64>> = vec![vec![1], vec![0], vec![1]];
+    let res = transpose(&vec![vec![1, 0, 1]]);
+
+    assert_eq!(test, res);
+}
+
+#[test]
+fn test_col_to_vec_i64() {
+    let table = pq::read("./data/init_states.parquet").unwrap();
+    let res = col_to_vec_i64(&table, "step_0");
+
+    assert!(res.len() == 100_000);
+}
+
+#[test]
+fn test_col_to_vec_str() {
+    let table = pq::read("./data/init_states.parquet").unwrap();
+    let res = col_to_vec_str(&table, "uuid");
+
+    assert!(res.len() == 100_000);
+}
