@@ -1,19 +1,17 @@
 // File I/O
-use polars::{prelude::*, io::parquet::write::StatisticsOptions};
+use polars::{io::parquet::write::StatisticsOptions, prelude::*};
 
-pub fn read(path:&str) -> PolarsResult<DataFrame> {
-  Ok(
-      ParquetReader::new(std::fs::File::open(path)?)
-          .use_statistics(true)
-          .finish()?
-  )
+pub fn read(path: &str) -> PolarsResult<DataFrame> {
+    Ok(ParquetReader::new(std::fs::File::open(path)?)
+        .use_statistics(true)
+        .finish()?)
 }
 
 #[test]
-fn test_read(){
-    // Ensure expected columns are in table 
+fn test_read() {
+    // Ensure expected columns are in table
     let test = vec!["uuid", "value", "step_0"];
-    let res:Vec<String> = read("./data/init_states.parquet")
+    let res: Vec<String> = read("./data/init_states.parquet")
         .expect("failed to read file")
         .get_column_names()
         .iter()
@@ -32,11 +30,11 @@ pub fn write(mut df: DataFrame, path: &str) -> Result<(), PolarsError> {
         .with_compression(ParquetCompression::Snappy)
         .finish(&mut df)?;
 
-Ok(())
+    Ok(())
 }
 
 #[test]
-fn test_write(){
+fn test_write() {
     // Create file
     if !std::fs::exists("./tmp").unwrap() {
         std::fs::create_dir("./tmp").unwrap();
@@ -49,6 +47,5 @@ fn test_write(){
     let res = std::fs::exists(test).unwrap();
     std::fs::remove_file(test).unwrap();
 
-assert!(res);
-
+    assert!(res);
 }
