@@ -10,7 +10,7 @@ pub fn read(path: &str) -> PolarsResult<DataFrame> {
 #[test]
 fn test_read() {
     // Ensure expected columns are in table
-    let test = vec!["uuid", "value", "step_0"];
+    let test = vec!["uuid", "step_0", "value"];
     let res: Vec<String> = read("./data/demo_input.parquet")
         .expect("failed to read file")
         .get_column_names()
