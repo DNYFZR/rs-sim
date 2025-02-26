@@ -11,7 +11,7 @@ pub fn read(path: &str) -> PolarsResult<DataFrame> {
 fn test_read() {
     // Ensure expected columns are in table
     let test = vec!["uuid", "value", "step_0"];
-    let res: Vec<String> = read("./data/init_states.parquet")
+    let res: Vec<String> = read("./data/demo_input.parquet")
         .expect("failed to read file")
         .get_column_names()
         .iter()
@@ -40,7 +40,7 @@ fn test_write() {
         std::fs::create_dir("./tmp").unwrap();
     }
     let test = "./tmp/test_write.parquet";
-    let df = read("./data/init_states.parquet").expect("failed to read file");
+    let df = read("./data/demo_input.parquet").expect("failed to read file");
     write(df, test).expect("failed to write...");
 
     // Confirms existance & remove

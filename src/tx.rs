@@ -295,7 +295,7 @@ fn test_transpose() {
 
 #[test]
 fn test_col_to_vec_i64() {
-    let table = pq::read("./data/init_states.parquet").unwrap();
+    let table = pq::read("./data/demo_input.parquet").unwrap();
     let res = col_to_vec_i64(&table, "step_0");
 
     assert!(res.len() == 100_000);
@@ -303,7 +303,7 @@ fn test_col_to_vec_i64() {
 
 #[test]
 fn test_col_to_vec_str() {
-    let table = pq::read("./data/init_states.parquet").unwrap();
+    let table = pq::read("./data/demo_input.parquet").unwrap();
     let res = col_to_vec_str(&table, "uuid");
 
     assert!(res.len() == 100_000);
