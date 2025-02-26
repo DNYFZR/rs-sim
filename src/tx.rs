@@ -180,17 +180,14 @@ pub fn constrain_event(table: &DataFrame, limit_array: Vec<i64>) -> Result<DataF
     let active_cols: Vec<(usize, String)> = table
         .get_column_names()
         .iter()
-        .filter(|c| c.contains(step_col))
+        // We skip step 0 as the initial state cannot be altered
+        .filter(|c| c.contains(step_col) && ***c != PlSmallStr::from_str("step_0"))
         .enumerate()
-        .map(|(i, c)| (i, c.to_string()))
+        .map(|(i, c)| (i + 1, c.to_string()))
         .collect();
 
     for (idx, col_name) in &active_cols {
-        // We skip step 0 as the initial state cannot be altered
-        if col_name == "step_0" {
-            continue;
-        }
-        // Add random ordering & applied costs columns
+        // Add columns for random ordering & applied costs
         table = table
             .lazy()
             .with_columns([
@@ -215,45 +212,40 @@ pub fn constrain_event(table: &DataFrame, limit_array: Vec<i64>) -> Result<DataF
                 SortMultipleOptions::new().with_order_descending(true),
             )?
             .lazy()
-            .with_columns([col("applied_cost").cum_sum(false).alias("totaliser")])
+            .with_columns([col("applied_cost").cum_sum(true).alias("totaliser")])
             .collect()?;
 
         // Increase age if cost is above set limit
+        let step_limit = lit(limit_array[*idx]);
         table = table
             .lazy()
             .with_columns([when(
                 col(col_name)
                     .eq(lit(0))
-                    .and(col("totaliser").gt(lit(limit_array[*idx])).eq(lit(true))),
+                    .and(col("totaliser").gt(step_limit)),
             )
-            .then(col(&active_cols[idx - 1].1) + lit(1))
+            .then(col(&format!("step_{}", idx - 1)) + lit(1))
             .otherwise(col(col_name))
             .alias("tmp_col")])
             .collect()?;
 
         // Update following years when event is deferred
         for (i, c) in active_cols.iter().rev() {
-            if i > &idx && *i != 0 {
+            if i > idx {
                 table = table
                     .lazy()
-                    .with_column(
-                        when(
-                            col(col_name)
-                                .eq(lit(0))
-                                .and(col("totaliser").gt(lit(limit_array[*idx])).eq(lit(true))),
-                        )
-                        .then(col(&active_cols[i - 1].1))
+                    .with_columns([when(col("tmp_col").neq(col(col_name)))
+                        .then(col(&format!("step_{}", i - 1)))
                         .otherwise(col(c))
-                        .alias(c),
-                    )
+                        .alias(c)])
                     .collect()?;
             }
         }
 
-        // Merge holding col into current col
+        // Update current year
         table = table
             .lazy()
-            .with_column(col("tmp_col").alias(col_name))
+            .with_columns([col("tmp_col").alias(col_name)])
             .collect()?;
 
         // Remove process cols
