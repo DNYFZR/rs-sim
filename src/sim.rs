@@ -191,7 +191,7 @@ fn test_discrete_event() {
         0.65, 0.6, 0.55, 0.5, 0.4, 0.25, 0.15, 0.1, 0.0,
     ];
 
-    let init_states = pq::read("data/init_states.parquet").expect("failted to read init states...");
+    let init_states = pq::read("data/demo_input.parquet").expect("failted to read init states...");
 
     // let uuids = tx::col_to_vec_str(&init_states, "uuid");
     let states = tx::col_to_vec_i64(&init_states, "step_0");
@@ -209,7 +209,7 @@ fn test_execute_event() {
         0.65, 0.6, 0.55, 0.5, 0.4, 0.25, 0.15, 0.1, 0.0,
     ];
 
-    let init_states = pq::read("data/init_states.parquet").expect("failted to read init states...");
+    let init_states = pq::read("data/demo_input.parquet").expect("failted to read init states...");
 
     let uuids = tx::col_to_vec_str(&init_states, "uuid");
     let states = tx::col_to_vec_i64(&init_states, "step_0");
