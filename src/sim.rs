@@ -2,7 +2,7 @@
 use crate::pq;
 use crate::tx;
 
-use ndarray_rand::rand::{Rng, SeedableRng, rngs::SmallRng};
+use rand::{Rng, rng};
 use polars::prelude::*;
 use rayon::prelude::*;
 use std::time::Instant;
@@ -158,7 +158,7 @@ fn discrete_event(states: &Vec<i64>, probabilities: &Vec<f64>, n_steps: &i64) ->
         &states
             .into_par_iter()
             .map(|&v| {
-                let mut para_thrd = SmallRng::from_entropy();
+                let mut para_thrd = rng();
 
                 let mut row: Vec<i64> = Vec::with_capacity(*n_steps as usize);
                 row.push(v);
@@ -167,7 +167,7 @@ fn discrete_event(states: &Vec<i64>, probabilities: &Vec<f64>, n_steps: &i64) ->
                 for _ in 1..*n_steps {
                     let new_val = active_value + 1;
                     if let Some(prob) = probabilities.get(new_val as usize) {
-                        if prob > &para_thrd.r#gen() {
+                        if prob > &para_thrd.random::<f64>() {
                             active_value = new_val;
                         } else {
                             active_value = 0;
