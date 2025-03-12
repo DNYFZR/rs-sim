@@ -1,6 +1,6 @@
 // Transformation Module
 use crate::pq;
-use ndarray_rand::rand::{Rng, SeedableRng, rngs::SmallRng};
+use rand::{rng, Rng};
 use polars::prelude::*;
 use rayon::prelude::*;
 
@@ -174,7 +174,7 @@ pub fn constrain_event(table: &DataFrame, limit_array: Vec<i64>) -> Result<DataF
     let mut table = table.clone();
     let val_col = "cost";
     let step_col = "step";
-    let mut thrd = SmallRng::from_entropy();
+    let mut thrd = rng();
 
     let n_rows = table.shape().0;
     let active_cols: Vec<(usize, String)> = table
@@ -194,7 +194,7 @@ pub fn constrain_event(table: &DataFrame, limit_array: Vec<i64>) -> Result<DataF
                 lit(Series::from_vec(
                     PlSmallStr::from_str("order_col"),
                     (0..n_rows)
-                        .map(|_| thrd.r#gen::<f64>())
+                        .map(|_| thrd.random::<f64>())
                         .collect::<Vec<f64>>(),
                 ))
                 .alias("order_col"),
